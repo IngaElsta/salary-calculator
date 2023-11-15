@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:local
+  h2:
+    console:
+      enabled: true
+  jpa:
+    properties:
+      hibernate:
+        column_ordering_strategy: legacy
+
