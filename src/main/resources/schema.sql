@@ -2,16 +2,19 @@ create table employee (
     id bigint not null,
     name varchar(255) not null,
     surname varchar(255) not null,
-    baseSalary double,
+    base_Salary double not null,
     dependents int,
-    useNonTaxableMinimum bit,
+    use_Non_Taxable_Minimum bit,
     primary key (id)
 );
 
 create table constant (
+    id bigint not null AUTO_INCREMENT,
     name varchar(255) not null,
     val double not null,
-    starDate date,
-    endDate date
+    start_Date date,
+    end_Date date,
+    primary key (id),
+    constraint nameDate unique (name, start_Date)
 );
 

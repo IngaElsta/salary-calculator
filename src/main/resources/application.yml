@@ -8,4 +8,6 @@ spring:
     properties:
       hibernate:
         column_ordering_strategy: legacy
+    hibernate:
+      ddl-auto: none
 
