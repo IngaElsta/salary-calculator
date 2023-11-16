@@ -3,7 +3,7 @@ create table employee (
     name varchar(255) not null,
     surname varchar(255) not null,
     base_Salary double not null,
-    dependents int,
+    dependants int,
     use_Non_Taxable_Minimum bit,
     primary key (id)
 );

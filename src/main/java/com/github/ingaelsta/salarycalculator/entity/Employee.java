@@ -14,6 +14,6 @@ public class Employee {
     private String name;
     private String surname;
     private Double baseSalary;
-    private Integer dependents;
+    private Integer dependants;
     private Boolean useNonTaxableMinimum;
 }
