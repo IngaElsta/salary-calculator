@@ -26,20 +26,20 @@ public class SalaryCalculatorService {
         //todo: implement error handling
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException(String.format("Employee with id %d not found", employeeId)));
-        Double socialTax = getConstant(Constants.SOCIAL_TAX, month, year);
+        Double socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
 
         //social tax
         double taxableAmount = employee.getBaseSalary();
-        double calculatedSocialTax = Precision.round(taxableAmount * (socialTax), 2);
+        double calculatedSocialTax = Precision.round(taxableAmount * (socialTaxRate), 2);
         taxableAmount -= calculatedSocialTax;
 
-        double calculatedNonTaxableSum = calculateNonTaxableSum(employee.getBaseSalary(), taxableAmount, employee.getDependants(), employee.getUseNonTaxableMinimum(), month, year);
+        double calculatedNonTaxableSum = calculateNonTaxableSum(employee, taxableAmount, month, year);
         double calculatedPayout = taxableAmount;
         taxableAmount = Math.max(taxableAmount - calculatedNonTaxableSum, 0);
 
         //todo: implement differentiated income tax
-        Double incomeTax = getConstant(Constants.INCOME_TAX, month, year);
-        double calculatedIncomeTax = Precision.round(taxableAmount * incomeTax, 2);
+        Double incomeTaxRate = getConstant(Constants.INCOME_TAX_RATE, month, year);
+        double calculatedIncomeTax = Precision.round(taxableAmount * incomeTaxRate, 2);
         calculatedPayout = Precision.round(calculatedPayout - calculatedIncomeTax, 2);
 
         return new Salary(employeeId,
@@ -52,15 +52,17 @@ public class SalaryCalculatorService {
     }
 
     protected Double calculateNonTaxableSum (
-            Double baseSalary,
+            Employee employee,
             Double taxableAmount,
-            Integer dependants,
-            Boolean useNonTaxableMinimum,
             int month,
             int year) {
+        Double baseSalary = employee.getBaseSalary();
+        Integer dependants = employee.getDependants();
+        Boolean useNonTaxableMinimum = employee.getUseNonTaxableMinimum();
+
         double nonTaxableAmount = 0;
         if ((dependants != null) && (dependants > 0)) {
-            Double nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_DEPENDANT, month, year);
+            Double nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
             nonTaxableAmount += nonTaxableForDependants * dependants;
         }
 
@@ -68,14 +70,14 @@ public class SalaryCalculatorService {
             return Math.min(taxableAmount, nonTaxableAmount);
         }
 
-        Double nonTaxableUpper = getConstant(Constants.NON_TAXABLE_UPPER, month, year);
-        if (taxableAmount > nonTaxableUpper) {
+        Double nonTaxableUpper = getConstant(Constants.NON_TAXABLE_UPPER_BOUND, month, year);
+        if (baseSalary > nonTaxableUpper) {
             return Math.min(taxableAmount, nonTaxableAmount);
         }
 
-        Double nonTaxableMinimum = getConstant(Constants.NON_TAXABLE_MINIMUM, month, year);
-        Double nonTaxableLower = getConstant(Constants.NON_TAXABLE_LOWER, month, year);
-        if (taxableAmount <= nonTaxableLower) {
+        Double nonTaxableMinimum = getConstant(Constants.MAX_NON_TAXABLE_MINIMUM, month, year);
+        Double nonTaxableLower = getConstant(Constants.NON_TAXABLE_LOWER_BOUND, month, year);
+        if (baseSalary <= nonTaxableLower) {
             nonTaxableAmount += Math.min(taxableAmount, nonTaxableMinimum);
             return Math.min(taxableAmount, nonTaxableAmount);
         }
