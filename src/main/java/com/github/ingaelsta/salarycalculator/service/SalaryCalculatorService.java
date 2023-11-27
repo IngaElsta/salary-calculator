@@ -4,6 +4,8 @@ import com.github.ingaelsta.salarycalculator.entity.Constant;
 import com.github.ingaelsta.salarycalculator.entity.Constants;
 import com.github.ingaelsta.salarycalculator.entity.Employee;
 import com.github.ingaelsta.salarycalculator.entity.Salary;
+import com.github.ingaelsta.salarycalculator.exceptions.ConstantValueMissingException;
+import com.github.ingaelsta.salarycalculator.exceptions.EmployeeNotFoundException;
 import com.github.ingaelsta.salarycalculator.repository.ConstantRepository;
 import com.github.ingaelsta.salarycalculator.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
@@ -25,7 +27,7 @@ public class SalaryCalculatorService {
     public Salary getSalary(Long employeeId, Integer month, Integer year) {
         //todo: implement error handling
         Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException(String.format("Employee with id %d not found", employeeId)));
+                .orElseThrow(() -> new EmployeeNotFoundException(String.format("Employee with id %d not found", employeeId)));
         Double socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
 
         //social tax
@@ -64,6 +66,7 @@ public class SalaryCalculatorService {
         if ((dependants != null) && (dependants > 0)) {
             Double nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
             nonTaxableAmount += nonTaxableForDependants * dependants;
+    System.out.println();
         }
 
         if (useNonTaxableMinimum == null || !useNonTaxableMinimum) {
@@ -94,7 +97,7 @@ public class SalaryCalculatorService {
         List<Constant> constantList = constantRepository.findByNameOrderByStartDateDesc(constantName);
         if (constantList.isEmpty()) {
             String prettyName = constantName.toLowerCase().replace("_", " ");
-            throw new RuntimeException(String.format("No value found for %s", prettyName));
+            throw new ConstantValueMissingException(String.format("No value found for %s", prettyName));
         }
         Constant constant = constantList.get(0);
         return constant.getVal();
