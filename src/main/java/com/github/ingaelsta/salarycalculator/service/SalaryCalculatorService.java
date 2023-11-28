@@ -48,7 +48,7 @@ public class SalaryCalculatorService {
 
         return new Salary(employeeId,
                 month, year,
-                employee.getBaseSalary(),
+                employee.getBaseSalary().setScale(2, halfUp),
                 calculatedNonTaxableSum,
                 calculatedIncomeTax,
                 calculatedSocialTax,
