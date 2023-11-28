@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class SalaryCalculatorService {
@@ -46,12 +47,13 @@ public class SalaryCalculatorService {
         BigDecimal calculatedPayout = taxableAmount.subtract(calculatedIncomeTax);
 
         return new Salary(employeeId,
-                month, year,
+                month,
+                year,
                 employee.getBaseSalary().setScale(2, halfUp),
-                calculatedNonTaxableSum,
-                calculatedIncomeTax,
-                calculatedSocialTax,
-                calculatedPayout);
+                calculatedNonTaxableSum.setScale(2, halfUp),
+                calculatedIncomeTax.setScale(2, halfUp),
+                calculatedSocialTax.setScale(2, halfUp),
+                calculatedPayout.setScale(2, halfUp));
     }
 
     protected BigDecimal calculateNonTaxableSum (
@@ -64,14 +66,14 @@ public class SalaryCalculatorService {
         Boolean useNonTaxableMinimum = employee.getUseNonTaxableMinimum();
 
         BigDecimal nonTaxableAmount = BigDecimal.ZERO;
-        if ((dependants != null) && (dependants > 0)) {
+        if (dependants > 0) {
             BigDecimal nonTaxableForDependants = getConstant(Constant.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
-            BigDecimal CalcuatedNonTaxableForDependants = nonTaxableForDependants.multiply(BigDecimal.valueOf(dependants));
+            BigDecimal CalculatedNonTaxableForDependants = nonTaxableForDependants.multiply(BigDecimal.valueOf(dependants));
             nonTaxableAmount = nonTaxableAmount
-                    .add(CalcuatedNonTaxableForDependants) ;
+                    .add(CalculatedNonTaxableForDependants) ;
         }
 
-        if (useNonTaxableMinimum == null || !useNonTaxableMinimum) {
+        if (!useNonTaxableMinimum) {
             return taxableAmount.min(nonTaxableAmount);
         }
 
@@ -87,7 +89,7 @@ public class SalaryCalculatorService {
             return taxableAmount.min(nonTaxableAmount);
         }
         BigDecimal coefficient = nonTaxableMinimum
-                .divide(nonTaxableUpper.subtract(nonTaxableLower), new MathContext(10, halfUp));
+                .divide(nonTaxableUpper.subtract(nonTaxableLower), 6, halfUp);
 //        K = GNMmax / (AImax – AImin);
         BigDecimal diffNonTaxableAmount = nonTaxableMinimum
                 .subtract(coefficient.multiply(baseSalary.subtract(nonTaxableLower)).setScale(2, halfUp));
