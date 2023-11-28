@@ -1,7 +1,6 @@
 package com.github.ingaelsta.salarycalculator.service;
 
 import com.github.ingaelsta.salarycalculator.entity.Constant;
-import com.github.ingaelsta.salarycalculator.entity.Constants;
 import com.github.ingaelsta.salarycalculator.entity.Employee;
 import com.github.ingaelsta.salarycalculator.entity.Salary;
 import com.github.ingaelsta.salarycalculator.exceptions.ConstantValueMissingException;
@@ -31,7 +30,7 @@ public class SalaryCalculatorService {
         //todo: implement error handling
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException(String.format("Employee with id %d not found", employeeId)));
-        BigDecimal socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
+        BigDecimal socialTaxRate = getConstant(Constant.SOCIAL_TAX_RATE, month, year);
 
         //social tax
         BigDecimal taxableAmount = employee.getBaseSalary();
@@ -42,7 +41,7 @@ public class SalaryCalculatorService {
         BigDecimal taxableAmountForIncomeTax = (taxableAmount.subtract(calculatedNonTaxableSum)).max(BigDecimal.ZERO);
 
         //todo: implement differentiated income tax
-        BigDecimal incomeTaxRate = getConstant(Constants.INCOME_TAX_RATE, month, year);
+        BigDecimal incomeTaxRate = getConstant(Constant.INCOME_TAX_RATE, month, year);
         BigDecimal calculatedIncomeTax = taxableAmountForIncomeTax.multiply(incomeTaxRate).setScale(2, halfUp);
         BigDecimal calculatedPayout = taxableAmount.subtract(calculatedIncomeTax);
 
@@ -66,7 +65,7 @@ public class SalaryCalculatorService {
 
         BigDecimal nonTaxableAmount = BigDecimal.ZERO;
         if ((dependants != null) && (dependants > 0)) {
-            BigDecimal nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
+            BigDecimal nonTaxableForDependants = getConstant(Constant.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
             BigDecimal CalcuatedNonTaxableForDependants = nonTaxableForDependants.multiply(BigDecimal.valueOf(dependants));
             nonTaxableAmount = nonTaxableAmount
                     .add(CalcuatedNonTaxableForDependants) ;
@@ -76,13 +75,13 @@ public class SalaryCalculatorService {
             return taxableAmount.min(nonTaxableAmount);
         }
 
-        BigDecimal nonTaxableUpper = getConstant(Constants.NON_TAXABLE_UPPER_BOUND, month, year);
+        BigDecimal nonTaxableUpper = getConstant(Constant.NON_TAXABLE_UPPER_BOUND, month, year);
         if (baseSalary.compareTo(nonTaxableUpper) > 0) { //>
             return taxableAmount.min(nonTaxableAmount);
         }
 
-        BigDecimal nonTaxableMinimum = getConstant(Constants.MAX_NON_TAXABLE_MINIMUM, month, year);
-        BigDecimal nonTaxableLower = getConstant(Constants.NON_TAXABLE_LOWER_BOUND, month, year);
+        BigDecimal nonTaxableMinimum = getConstant(Constant.MAX_NON_TAXABLE_MINIMUM, month, year);
+        BigDecimal nonTaxableLower = getConstant(Constant.NON_TAXABLE_LOWER_BOUND, month, year);
         if (baseSalary.compareTo(nonTaxableLower) <= 0) { //<=
             nonTaxableAmount = nonTaxableAmount.add(taxableAmount.min(nonTaxableMinimum));
             return taxableAmount.min(nonTaxableAmount);
