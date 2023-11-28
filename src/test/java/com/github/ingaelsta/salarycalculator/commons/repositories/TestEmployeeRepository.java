@@ -2,6 +2,7 @@ package com.github.ingaelsta.salarycalculator.commons.repositories;
 
 import com.github.ingaelsta.salarycalculator.entity.Employee;
 import com.github.ingaelsta.salarycalculator.repository.EmployeeRepository;
+import org.springframework.lang.Nullable;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -21,16 +22,16 @@ public class TestEmployeeRepository implements EmployeeRepository {
         employeeMap.put(2L, new Employee(2L, "Low", "Salary", BigDecimal.valueOf(400.00), 0, false));
         //below lower bound for non-taxable minimum differentiation, 1 dependant, does not use non-taxable minimum
         employeeMap.put(3L, new Employee(3L, "Low", "Salary", BigDecimal.valueOf(400.00), 1, false));
-        //below lower bound for non-taxable minimum differentiation, 2 dependants, does not use non-taxable minimum
-        employeeMap.put(4L, new Employee(4L, "Low", "Salary", BigDecimal.valueOf(400.00), 2, false));
-        //non-taxable minimum differentiation, no dependants, uses non-taxable minimum
-        employeeMap.put(5L, new Employee(5L, "Mid", "Salary", BigDecimal.valueOf(1400.00), 0, true));
-        //non-taxable minimum differentiation, no dependants, does not use non-taxable minimum
-        employeeMap.put(6L, new Employee(6L, "Mid", "Salary", BigDecimal.valueOf(1400.00), 0, false));
-        //non-taxable minimum differentiation, 2 dependants, uses non-taxable minimum
-        employeeMap.put(7L, new Employee(7L, "Mid", "Salary", BigDecimal.valueOf(1400.00), 2, true));
-        //non-taxable minimum differentiation, 2 dependants, does not use non-taxable minimum
-        employeeMap.put(8L, new Employee(8L, "Mid", "Salary", BigDecimal.valueOf(1400.00), 2, false));
+        //non-taxable minimum differentiation, no dependants, uses non-taxable minimum, income tax low
+        employeeMap.put(4L, new Employee(4L, "Mid", "Salary", BigDecimal.valueOf(1400.00), 0, true));
+        //non-taxable minimum differentiation, no dependants, uses non-taxable minimum, income tax mid
+        employeeMap.put(5L, new Employee(5L, "Mid Tax", "Salary", BigDecimal.valueOf(1700.00), 0, true));
+        //above non-taxable minimum, 0 dependants, uses non-taxable minimum, income tax mid
+        employeeMap.put(6L, new Employee(6L, "High", "Salary", BigDecimal.valueOf(1900.00), 0, true));
+        //above non-taxable minimum, 0 dependants, uses non-taxable minimum, income tax mid
+        employeeMap.put(7L, new Employee(7L, "High", "Salary", BigDecimal.valueOf(1900.00), 0, false));
+        //above non-taxable minimum, 0 dependants, does not use non-taxable minimum, income tax max
+        employeeMap.put(8L, new Employee(8L, "Max Tax", "Salary", BigDecimal.valueOf(7000.00), 2, false));
 
     }    
 
@@ -50,7 +51,8 @@ public class TestEmployeeRepository implements EmployeeRepository {
 
     @Override
     public Optional<Employee> findById(Long id) {
-        return Optional.of(employeeMap.get(id));
+        Employee value = employeeMap.get(id);
+        return Optional.ofNullable(value);
     }
 
     @Override
