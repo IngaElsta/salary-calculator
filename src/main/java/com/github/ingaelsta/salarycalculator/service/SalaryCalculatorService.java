@@ -9,7 +9,6 @@ import com.github.ingaelsta.salarycalculator.exceptions.EmployeeNotFoundExceptio
 import com.github.ingaelsta.salarycalculator.repository.ConstantRepository;
 import com.github.ingaelsta.salarycalculator.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
-import org.apache.commons.math3.util.Precision;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -22,7 +21,6 @@ public class SalaryCalculatorService {
     private final ConstantRepository constantRepository;
     private final EmployeeRepository employeeRepository;
     private final RoundingMode halfUp = RoundingMode.HALF_UP;
-    private final MathContext mathContext = new MathContext(2, halfUp);
 
     public SalaryCalculatorService(ConstantRepository constantRepository, EmployeeRepository employeeRepository) {
         this.constantRepository = constantRepository;
@@ -36,28 +34,25 @@ public class SalaryCalculatorService {
         BigDecimal socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
 
         //social tax
-        BigDecimal taxableAmount = BigDecimal.valueOf(employee.getBaseSalary());
-        BigDecimal calculatedSocialTax = taxableAmount.multiply(socialTaxRate);
+        BigDecimal taxableAmount = employee.getBaseSalary();
+        BigDecimal calculatedSocialTax = taxableAmount.multiply(socialTaxRate).setScale(2, halfUp);
         taxableAmount = taxableAmount.subtract(calculatedSocialTax);
-        System.out.println(taxableAmount.doubleValue());
 
-        BigDecimal calculatedNonTaxableSum = calculateNonTaxableSum(employee, taxableAmount, month, year)
-                .setScale(2, halfUp);
-        BigDecimal calculatedPayout = taxableAmount;
-        taxableAmount = (taxableAmount.subtract(calculatedNonTaxableSum)).max(BigDecimal.ZERO);
+        BigDecimal calculatedNonTaxableSum = calculateNonTaxableSum(employee, taxableAmount, month, year);
+        BigDecimal taxableAmountForIncomeTax = (taxableAmount.subtract(calculatedNonTaxableSum)).max(BigDecimal.ZERO);
 
         //todo: implement differentiated income tax
         BigDecimal incomeTaxRate = getConstant(Constants.INCOME_TAX_RATE, month, year);
-        BigDecimal calculatedIncomeTax = taxableAmount.multiply(incomeTaxRate);
-        calculatedPayout = calculatedPayout.subtract(calculatedIncomeTax);
+        BigDecimal calculatedIncomeTax = taxableAmountForIncomeTax.multiply(incomeTaxRate).setScale(2, halfUp);
+        BigDecimal calculatedPayout = taxableAmount.subtract(calculatedIncomeTax);
 
         return new Salary(employeeId,
                 month, year,
                 employee.getBaseSalary(),
-                calculatedNonTaxableSum.doubleValue(),
-                calculatedIncomeTax.doubleValue(),
-                calculatedSocialTax.doubleValue(),
-                calculatedPayout.doubleValue());
+                calculatedNonTaxableSum,
+                calculatedIncomeTax,
+                calculatedSocialTax,
+                calculatedPayout);
     }
 
     protected BigDecimal calculateNonTaxableSum (
@@ -65,7 +60,7 @@ public class SalaryCalculatorService {
             BigDecimal taxableAmount,
             int month,
             int year) {
-        BigDecimal baseSalary = BigDecimal.valueOf(employee.getBaseSalary());
+        BigDecimal baseSalary = employee.getBaseSalary();
         Integer dependants = employee.getDependants();
         Boolean useNonTaxableMinimum = employee.getUseNonTaxableMinimum();
 
@@ -100,7 +95,7 @@ public class SalaryCalculatorService {
         nonTaxableAmount = diffNonTaxableAmount.add(nonTaxableAmount)
                 .min( taxableAmount);
 //        GDNM = GNMmax – K x (AI – AImin)
-        return taxableAmount.min(nonTaxableAmount);
+        return (taxableAmount.min(nonTaxableAmount)).setScale(2, halfUp);
     }
 
     private BigDecimal getConstant(String constantName, Integer month, Integer year) {
