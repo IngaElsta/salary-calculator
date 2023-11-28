@@ -11,6 +11,9 @@ import com.github.ingaelsta.salarycalculator.repository.EmployeeRepository;
 import org.springframework.stereotype.Service;
 import org.apache.commons.math3.util.Precision;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
@@ -18,6 +21,8 @@ public class SalaryCalculatorService {
 
     private final ConstantRepository constantRepository;
     private final EmployeeRepository employeeRepository;
+    private final RoundingMode halfUp = RoundingMode.HALF_UP;
+    private final MathContext mathContext = new MathContext(2, halfUp);
 
     public SalaryCalculatorService(ConstantRepository constantRepository, EmployeeRepository employeeRepository) {
         this.constantRepository = constantRepository;
@@ -28,71 +33,77 @@ public class SalaryCalculatorService {
         //todo: implement error handling
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException(String.format("Employee with id %d not found", employeeId)));
-        Double socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
+        BigDecimal socialTaxRate = getConstant(Constants.SOCIAL_TAX_RATE, month, year);
 
         //social tax
-        double taxableAmount = employee.getBaseSalary();
-        double calculatedSocialTax = Precision.round(taxableAmount * (socialTaxRate), 2);
-        taxableAmount -= calculatedSocialTax;
+        BigDecimal taxableAmount = BigDecimal.valueOf(employee.getBaseSalary());
+        BigDecimal calculatedSocialTax = taxableAmount.multiply(socialTaxRate);
+        taxableAmount = taxableAmount.subtract(calculatedSocialTax);
+        System.out.println(taxableAmount.doubleValue());
 
-        double calculatedNonTaxableSum = calculateNonTaxableSum(employee, taxableAmount, month, year);
-        double calculatedPayout = taxableAmount;
-        taxableAmount = Math.max(taxableAmount - calculatedNonTaxableSum, 0);
+        BigDecimal calculatedNonTaxableSum = calculateNonTaxableSum(employee, taxableAmount, month, year)
+                .setScale(2, halfUp);
+        BigDecimal calculatedPayout = taxableAmount;
+        taxableAmount = (taxableAmount.subtract(calculatedNonTaxableSum)).max(BigDecimal.ZERO);
 
         //todo: implement differentiated income tax
-        Double incomeTaxRate = getConstant(Constants.INCOME_TAX_RATE, month, year);
-        double calculatedIncomeTax = Precision.round(taxableAmount * incomeTaxRate, 2);
-        calculatedPayout = Precision.round(calculatedPayout - calculatedIncomeTax, 2);
+        BigDecimal incomeTaxRate = getConstant(Constants.INCOME_TAX_RATE, month, year);
+        BigDecimal calculatedIncomeTax = taxableAmount.multiply(incomeTaxRate);
+        calculatedPayout = calculatedPayout.subtract(calculatedIncomeTax);
 
         return new Salary(employeeId,
                 month, year,
                 employee.getBaseSalary(),
-                calculatedNonTaxableSum,
-                calculatedIncomeTax,
-                calculatedSocialTax,
-                calculatedPayout);
+                calculatedNonTaxableSum.doubleValue(),
+                calculatedIncomeTax.doubleValue(),
+                calculatedSocialTax.doubleValue(),
+                calculatedPayout.doubleValue());
     }
 
-    protected Double calculateNonTaxableSum (
+    protected BigDecimal calculateNonTaxableSum (
             Employee employee,
-            Double taxableAmount,
+            BigDecimal taxableAmount,
             int month,
             int year) {
-        Double baseSalary = employee.getBaseSalary();
+        BigDecimal baseSalary = BigDecimal.valueOf(employee.getBaseSalary());
         Integer dependants = employee.getDependants();
         Boolean useNonTaxableMinimum = employee.getUseNonTaxableMinimum();
 
-        double nonTaxableAmount = 0;
+        BigDecimal nonTaxableAmount = BigDecimal.ZERO;
         if ((dependants != null) && (dependants > 0)) {
-            Double nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
-            nonTaxableAmount += nonTaxableForDependants * dependants;
-    System.out.println();
+            BigDecimal nonTaxableForDependants = getConstant(Constants.NON_TAXABLE_AMOUNT_FOR_EACH_DEPENDANT, month, year);
+            BigDecimal CalcuatedNonTaxableForDependants = nonTaxableForDependants.multiply(BigDecimal.valueOf(dependants));
+            nonTaxableAmount = nonTaxableAmount
+                    .add(CalcuatedNonTaxableForDependants) ;
         }
 
         if (useNonTaxableMinimum == null || !useNonTaxableMinimum) {
-            return Math.min(taxableAmount, nonTaxableAmount);
+            return taxableAmount.min(nonTaxableAmount);
         }
 
-        Double nonTaxableUpper = getConstant(Constants.NON_TAXABLE_UPPER_BOUND, month, year);
-        if (baseSalary > nonTaxableUpper) {
-            return Math.min(taxableAmount, nonTaxableAmount);
+        BigDecimal nonTaxableUpper = getConstant(Constants.NON_TAXABLE_UPPER_BOUND, month, year);
+        if (baseSalary.compareTo(nonTaxableUpper) > 0) { //>
+            return taxableAmount.min(nonTaxableAmount);
         }
 
-        Double nonTaxableMinimum = getConstant(Constants.MAX_NON_TAXABLE_MINIMUM, month, year);
-        Double nonTaxableLower = getConstant(Constants.NON_TAXABLE_LOWER_BOUND, month, year);
-        if (baseSalary <= nonTaxableLower) {
-            nonTaxableAmount += Math.min(taxableAmount, nonTaxableMinimum);
-            return Math.min(taxableAmount, nonTaxableAmount);
+        BigDecimal nonTaxableMinimum = getConstant(Constants.MAX_NON_TAXABLE_MINIMUM, month, year);
+        BigDecimal nonTaxableLower = getConstant(Constants.NON_TAXABLE_LOWER_BOUND, month, year);
+        if (baseSalary.compareTo(nonTaxableLower) <= 0) { //<=
+            nonTaxableAmount = nonTaxableAmount.add(taxableAmount.min(nonTaxableMinimum));
+            return taxableAmount.min(nonTaxableAmount);
         }
-        double coefficient = nonTaxableMinimum / (nonTaxableUpper - nonTaxableLower);
+        BigDecimal coefficient = nonTaxableMinimum
+                .divide(nonTaxableUpper.subtract(nonTaxableLower), new MathContext(10, halfUp));
 //        K = GNMmax / (AImax – AImin);
-        double diffNonTaxableAmount = nonTaxableMinimum - coefficient * (baseSalary - nonTaxableLower);
-        nonTaxableAmount = Precision.round( Math.min(diffNonTaxableAmount + nonTaxableAmount, taxableAmount), 2);
+        BigDecimal diffNonTaxableAmount = nonTaxableMinimum
+                .subtract(coefficient.multiply(baseSalary.subtract(nonTaxableLower)).setScale(2, halfUp));
+        nonTaxableAmount = diffNonTaxableAmount.add(nonTaxableAmount)
+                .min( taxableAmount);
 //        GDNM = GNMmax – K x (AI – AImin)
-        return Math.min(taxableAmount, nonTaxableAmount);
+        return taxableAmount.min(nonTaxableAmount);
     }
 
-    private Double getConstant(String constantName, Integer month, Integer year) {
+    private BigDecimal getConstant(String constantName, Integer month, Integer year) {
         //todo: implement check for correct period
         List<Constant> constantList = constantRepository.findByNameOrderByStartDateDesc(constantName);
         if (constantList.isEmpty()) {
@@ -100,6 +111,6 @@ public class SalaryCalculatorService {
             throw new ConstantValueMissingException(String.format("No value found for %s", prettyName));
         }
         Constant constant = constantList.get(0);
-        return constant.getVal();
+        return BigDecimal.valueOf(constant.getVal());
     }
 }
