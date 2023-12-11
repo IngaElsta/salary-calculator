@@ -2,7 +2,6 @@ package com.github.ingaelsta.salarycalculator.service;
 
 import com.github.ingaelsta.salarycalculator.commons.repositories.TestConstantRepository;
 import com.github.ingaelsta.salarycalculator.commons.repositories.TestEmployeeRepository;
-import com.github.ingaelsta.salarycalculator.entity.Constant;
 import com.github.ingaelsta.salarycalculator.entity.Employee;
 import com.github.ingaelsta.salarycalculator.entity.Salary;
 import com.github.ingaelsta.salarycalculator.exceptions.ConstantValueMissingException;
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
