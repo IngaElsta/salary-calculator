@@ -12,7 +12,7 @@ create table constant (
     id bigint not null AUTO_INCREMENT,
     name varchar(255) not null,
     val decimal(10, 4) not null,
-    start_Date date,
+    start_Date date not null,
     end_Date date,
     primary key (id),
     constraint nameDate unique (name, start_Date)
